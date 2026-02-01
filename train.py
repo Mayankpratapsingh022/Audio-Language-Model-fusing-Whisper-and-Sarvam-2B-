@@ -30,6 +30,7 @@ class SamplePredictionCallback(TrainerCallback):
             batch = self.data_collator([self.train_dataset[i] for i in indices])
             audio_values = batch["audio_values"].to(device)
             labels_batch = batch["labels"]
+            continuations = batch.get("continuation", [""] * audio_values.size(0))
             prompt_ids = self.tokenizer(self.prompt, return_tensors="pt", add_special_tokens=True).input_ids.to(device)
             prompt_ids = prompt_ids.expand(audio_values.size(0), -1)
             with torch.no_grad():
@@ -50,10 +51,12 @@ class SamplePredictionCallback(TrainerCallback):
                 pred_text = self.tokenizer.decode(gen_ids[i][prompt_len:], skip_special_tokens=True).strip()
                 def _trunc(s, max_len=200):
                     return s[:max_len] + ("..." if len(s) > max_len else "")
+                cont_ref = continuations[i] if i < len(continuations) else ""
                 print(f"  [Sample {i+1}]")
-                print(f"    Input (prompt):     {_trunc(self.prompt)}")
+                print(f"    Audio transcript:   {_trunc(gt_text)}")
                 print(f"    Model inference:    {_trunc(pred_text)}")
-                print(f"    Ground truth:       {_trunc(gt_text)}")
+                if cont_ref:
+                    print(f"    Continuation (ref): {_trunc(cont_ref)}")
                 print()
             print("=" * 60 + "\n")
         except Exception as e:

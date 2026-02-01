@@ -86,6 +86,8 @@ class MultiModalModel(nn.Module):
         if labels is not None:
             labels = labels.to(llm_dtype) if labels.dtype.is_floating_point else labels
 
+        # Drop non-tensor keys (e.g. continuation) so LLM forward doesn't receive them
+        kwargs = {k: v for k, v in kwargs.items() if isinstance(v, torch.Tensor)}
         outputs = self.llm(
             inputs_embeds=inputs_embeds,
             labels=labels,

@@ -34,6 +34,7 @@ class AudioTextDataset(Dataset):
         audio_array = item["audio"]["array"]
         sampling_rate = item["audio"]["sampling_rate"]
         text = item.get("sentence", item.get("text", ""))
+        continuation = item.get("continuation", item.get("continuation_text", ""))
 
         audio = torch.from_numpy(audio_array).float()
         if audio.ndim == 1:
@@ -51,7 +52,8 @@ class AudioTextDataset(Dataset):
         return {
             "audio_values": audio_values,
             "input_ids": input_ids,
-            "labels": labels
+            "labels": labels,
+            "continuation": continuation,
         }
 
 @dataclasses.dataclass
@@ -59,11 +61,12 @@ class DataCollator:
     processor: transformers.AutoProcessor
     tokenizer: transformers.PreTrainedTokenizer
     
-    def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
+    def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
         audio_values = [f["audio_values"] for f in features]
         input_ids = [f["input_ids"] for f in features]
         labels = [f["labels"] for f in features]
-        
+        continuations = [f.get("continuation", "") for f in features]
+
         if audio_values[0].shape[-1] == 3000:
              audio_batch = torch.stack(audio_values)
         else:
@@ -79,5 +82,6 @@ class DataCollator:
             "audio_values": audio_batch,
             "input_ids": input_ids_batch,
             "labels": labels_batch,
-            "attention_mask": (input_ids_batch != self.tokenizer.pad_token_id).long()
+            "attention_mask": (input_ids_batch != self.tokenizer.pad_token_id).long(),
+            "continuation": continuations,
         }
