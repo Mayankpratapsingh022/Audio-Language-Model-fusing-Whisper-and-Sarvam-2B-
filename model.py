@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import transformers
 from typing import Optional, Tuple, Union, List
-from .config import ModelConfig
+from config import ModelConfig
 
 class ModelProjector(nn.Module):
     def __init__(self, config: ModelConfig, audio_hidden_size: int):
@@ -79,8 +79,13 @@ class MultiModalModel(nn.Module):
              if "attention_mask" in kwargs:
                   audio_mask = torch.ones((audio_projected.shape[0], audio_projected.shape[1]), device=inputs_embeds.device, dtype=kwargs["attention_mask"].dtype)
                   kwargs["attention_mask"] = torch.cat([audio_mask, kwargs["attention_mask"]], dim=1)
-        
-        
+
+        # Match LLM dtype (e.g. bfloat16) to avoid "float != bfloat16" in linear layers
+        llm_dtype = next(self.llm.parameters()).dtype
+        inputs_embeds = inputs_embeds.to(llm_dtype)
+        if labels is not None:
+            labels = labels.to(llm_dtype) if labels.dtype.is_floating_point else labels
+
         outputs = self.llm(
             inputs_embeds=inputs_embeds,
             labels=labels,
@@ -101,5 +106,6 @@ class MultiModalModel(nn.Module):
              if "attention_mask" in kwargs:
                   audio_mask = torch.ones((audio_projected.shape[0], audio_projected.shape[1]), device=inputs_embeds.device, dtype=kwargs["attention_mask"].dtype)
                   kwargs["attention_mask"] = torch.cat([audio_mask, kwargs["attention_mask"]], dim=1)
-        
+             inputs_embeds = inputs_embeds.to(next(self.llm.parameters()).dtype)
+
         return self.llm.generate(inputs_embeds=inputs_embeds, **kwargs)

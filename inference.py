@@ -2,8 +2,8 @@
 import torch
 import torchaudio
 import transformers
-from .config import ModelConfig
-from .model import MultiModalModel
+from config import ModelConfig
+from model import MultiModalModel
 
 def run_inference(audio_path: str, model_path: str = None):
     # Load Config & Model

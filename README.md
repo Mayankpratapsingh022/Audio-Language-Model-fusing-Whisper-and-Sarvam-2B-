@@ -13,12 +13,20 @@ A modular, simplified implementation of a multimodal LLM inspired by Audio Langu
 
 ## Setup
 
-1. Install dependencies:
+1. **System: Install FFmpeg** (required for audio decoding with Common Voice / MP3):
    ```bash
-   pip install torch torchaudio transformers peft accelerate datasets
+   # Ubuntu/Debian
+   sudo apt-get update && sudo apt-get install -y ffmpeg
    ```
+   Without FFmpeg, loading audio will fail with `Could not load libtorchcodec` / `libavutil.so: cannot open shared object file`.
 
-2. Dataset:
+2. **Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+   Or: `pip install torch torchaudio transformers peft accelerate datasets`
+
+3. **Dataset:**
    The project is configured to use Hugging Face datasets (default: `fixie-ai/common_voice_17_0`).
    You can change the dataset settings in `config.py`.
 
@@ -29,14 +37,14 @@ A modular, simplified implementation of a multimodal LLM inspired by Audio Langu
 1. Configure `config.py` if needed (batch size, learning rate, paths).
 2. Run training:
    ```bash
-   python -m audio_lm.train
+   python train.py
    ```
 
 ### Inference
 
 Run inference on an audio file:
 ```bash
-python -m audio_lm.inference /path/to/audio.wav
+python inference.py /path/to/audio.wav
 ```
 
 ## Model Architecture

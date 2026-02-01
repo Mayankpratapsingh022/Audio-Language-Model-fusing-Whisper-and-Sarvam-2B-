@@ -1,4 +1,3 @@
-
 import json
 import torch
 from torch.utils.data import Dataset
@@ -7,7 +6,7 @@ import transformers
 import datasets
 from typing import List, Dict, Any, Optional
 import dataclasses
-from .config import ModelConfig, TrainConfig
+from config import ModelConfig, TrainConfig
 
 class AudioTextDataset(Dataset):
     def __init__(self, train_config: TrainConfig, processor: transformers.AutoProcessor, model_config: ModelConfig, tokenizer: transformers.PreTrainedTokenizer):
@@ -17,8 +16,9 @@ class AudioTextDataset(Dataset):
             train_config.dataset_name,
             train_config.dataset_subset,
             split=train_config.dataset_split,
-            # trust_remote_code=True # Removed as it raised an error/warning
+            verification_mode="no_checks",  # avoid NonMatchingSplitsSizesError when Hub metadata differs from cached
         )
+        # Audio(sampling_rate=...) decodes and resamples via TorchCodec; requires system FFmpeg (apt install ffmpeg)
         self.dataset = self.dataset.cast_column("audio", datasets.Audio(sampling_rate=self.sampling_rate))
         
         self.processor = processor
@@ -30,22 +30,18 @@ class AudioTextDataset(Dataset):
     
     def __getitem__(self, idx):
         item = self.dataset[idx]
-        # HF returns {'audio': {'array': ..., 'sampling_rate': ...}, 'sentence': ...}
-        audio_array = item['audio']['array']
-        sampling_rate = item['audio']['sampling_rate']
-        text = item.get('sentence', item.get('text', ""))
-        
-        # Convert numpy array to torch tensor
+        # HF Audio returns {'audio': {'array': ..., 'sampling_rate': ...}, 'sentence': ...}
+        audio_array = item["audio"]["array"]
+        sampling_rate = item["audio"]["sampling_rate"]
+        text = item.get("sentence", item.get("text", ""))
+
         audio = torch.from_numpy(audio_array).float()
-        
-        # Whisper expects mono audio
-        # HF Audio feature usually returns (C, T) or just (T,) for mono? 
-        # Actually datasets Audio returns numpy array. If mono, it is (T,). If stereo (C, T) or (T, C)?
-        # Usually it's just a 1D array for mono.
         if audio.ndim == 1:
-             audio = audio.unsqueeze(0) # (1, T)
-        
-        audio_inputs = self.processor(audio.squeeze().numpy(), sampling_rate=self.sampling_rate, return_tensors="pt")
+            audio = audio.unsqueeze(0)  # (1, T)
+        elif audio.shape[0] > 1:
+            audio = audio.mean(dim=0, keepdim=True)  # mono
+
+        audio_inputs = self.processor(audio.squeeze().numpy(), sampling_rate=sampling_rate or self.sampling_rate, return_tensors="pt")
         audio_values = audio_inputs.input_features.squeeze(0)
         
         text_inputs = self.tokenizer(text, return_tensors="pt", padding=False, truncation=True)

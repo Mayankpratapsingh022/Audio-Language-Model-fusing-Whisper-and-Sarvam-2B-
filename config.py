@@ -36,3 +36,4 @@ class TrainConfig:
     log_steps: int = 10
     eval_steps: int = 100
     save_steps: int = 100
+    sample_pred_every_steps: int = 100  # print ground-truth vs predicted transcript every N steps

@@ -1,11 +1,63 @@
-
 import os
+import torch
 import transformers
-from transformers import Trainer, TrainingArguments
+from transformers import Trainer, TrainingArguments, TrainerCallback
 from peft import LoraConfig, get_peft_model, TaskType
-from .config import TrainConfig, ModelConfig
-from .model import MultiModalModel
-from .data import AudioTextDataset, DataCollator
+from config import TrainConfig, ModelConfig
+from model import MultiModalModel
+from data import AudioTextDataset, DataCollator
+
+
+class SamplePredictionCallback(TrainerCallback):
+    """Every N steps, print ground-truth vs model-predicted transcript for a few samples."""
+
+    def __init__(self, tokenizer, data_collator, train_dataset, sample_every_n_steps: int = 100, num_samples: int = 2, prompt: str = "Transcribe the following audio:"):
+        self.tokenizer = tokenizer
+        self.data_collator = data_collator
+        self.train_dataset = train_dataset
+        self.sample_every_n_steps = sample_every_n_steps
+        self.num_samples = num_samples
+        self.prompt = prompt
+    def on_log(self, args, state, control, model=None, **kwargs):
+        if state.global_step == 0 or state.global_step % self.sample_every_n_steps != 0:
+            return
+        if model is None:
+            return
+        model.eval()
+        device = next(model.parameters()).device
+        try:
+            indices = [i % len(self.train_dataset) for i in range(self.num_samples)]
+            batch = self.data_collator([self.train_dataset[i] for i in indices])
+            audio_values = batch["audio_values"].to(device)
+            labels_batch = batch["labels"]
+            prompt_ids = self.tokenizer(self.prompt, return_tensors="pt", add_special_tokens=True).input_ids.to(device)
+            prompt_ids = prompt_ids.expand(audio_values.size(0), -1)
+            with torch.no_grad():
+                gen_ids = model.generate(
+                    input_ids=prompt_ids,
+                    audio_values=audio_values,
+                    max_new_tokens=120,
+                    do_sample=False,
+                    pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
+                )
+            prompt_len = prompt_ids.size(1)
+            print("\n" + "=" * 60)
+            print(f"  Sample predictions (step {state.global_step})")
+            print("=" * 60)
+            for i in range(audio_values.size(0)):
+                gt_tokens = [t for t in labels_batch[i].tolist() if t != -100]
+                gt_text = self.tokenizer.decode(gt_tokens, skip_special_tokens=True).strip()
+                pred_text = self.tokenizer.decode(gen_ids[i][prompt_len:], skip_special_tokens=True).strip()
+                print(f"  [Sample {i+1}]")
+                print(f"    Ground truth: {gt_text[:200]}{'...' if len(gt_text) > 200 else ''}")
+                print(f"    Predicted:    {pred_text[:200]}{'...' if len(pred_text) > 200 else ''}")
+                print()
+            print("=" * 60 + "\n")
+        except Exception as e:
+            print(f"[SamplePredictionCallback] Error: {e}\n")
+        finally:
+            model.train()
+
 
 def train():
     # Load Configs
@@ -39,7 +91,7 @@ def train():
     train_dataset = AudioTextDataset(train_config, processor, model_config, tokenizer)
     data_collator = DataCollator(processor, tokenizer)
     
-    # Training Arguments
+    # Training Arguments (verbose logging)
     training_args = TrainingArguments(
         output_dir=train_config.output_dir,
         per_device_train_batch_size=train_config.batch_size,
@@ -48,19 +100,38 @@ def train():
         num_train_epochs=train_config.num_epochs,
         max_steps=train_config.max_steps,
         logging_steps=train_config.log_steps,
+        logging_first_step=True,
+        logging_nan_inf_filter=True,
         save_steps=train_config.save_steps,
-        eval_strategy="no", # change if val set provided
-        remove_unused_columns=False, # Important because we have custom forward signature
-        report_to="none"
+        eval_strategy="no",  # change if val set provided
+        remove_unused_columns=False,  # Important because we have custom forward signature
+        report_to="none",
+        log_level="info",
+        log_level_replica="info",
     )
-    
+
+    sample_callback = SamplePredictionCallback(
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        train_dataset=train_dataset,
+        sample_every_n_steps=train_config.sample_pred_every_steps,
+        num_samples=2,
+        prompt="Transcribe the following audio:",
+    )
+
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         data_collator=data_collator,
+        callbacks=[sample_callback],
     )
-    
+
+    total_steps = train_config.max_steps
+    print(f"\n>>> Training: max_steps={total_steps}, batch_size={train_config.batch_size}, "
+          f"grad_accum={train_config.accum_steps} (effective batch={train_config.batch_size * train_config.accum_steps})")
+    print(f">>> Sample predictions (GT vs predicted transcript) every {train_config.sample_pred_every_steps} steps.\n")
+
     trainer.train()
     
     # Save

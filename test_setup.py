@@ -6,8 +6,8 @@ import torch
 # Ensure we can import the module
 sys.path.append(os.getcwd())
 
-from audio_lm.config import ModelConfig
-from audio_lm.model import MultiModalModel
+from config import ModelConfig
+from model import MultiModalModel
 
 def test_instantiation():
     print("Testing model instantiation...")

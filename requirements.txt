@@ -1,0 +1,13 @@
+# Core (audio decode uses TorchCodec; system FFmpeg required: apt install ffmpeg)
+torch>=2.0.0
+torchaudio>=2.0.0
+# Hugging Face
+transformers>=4.36.0
+datasets>=2.14.0
+accelerate>=0.25.0
+
+# PEFT (LoRA)
+peft>=0.7.0
+
+# Optional: for Trainer / training
+# accelerate is needed by transformers Trainer
