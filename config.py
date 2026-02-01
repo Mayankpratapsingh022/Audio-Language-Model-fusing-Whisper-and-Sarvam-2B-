@@ -11,12 +11,18 @@ class ModelConfig:
 
 @dataclasses.dataclass
 class TrainConfig:
-    batch_size: int = 4
-    accum_steps: int = 4
+    # --- Batch & GPU (tuned for A100 80GB) ---
+    batch_size: int = 32          # per-device; try 64 if no OOM
+    accum_steps: int = 2          # effective batch = 32*2=64; reduce if OOM
+    use_bf16: bool = True         # A100 native bf16: faster + less VRAM
+    gradient_checkpointing: bool = False  # set True if OOM to trade compute for memory
+    dataloader_num_workers: int = 8
+    dataloader_pin_memory: bool = True
+
     learning_rate: float = 1e-4
     num_epochs: int = 1
     max_steps: int = 1000 # Use either epochs or steps
-    
+
     # Paths
     output_dir: str = "./checkpoints"
     # data_path: str = "./data/train.jsonl" # REMOVED

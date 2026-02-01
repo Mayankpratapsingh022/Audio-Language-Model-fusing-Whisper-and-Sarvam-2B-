@@ -48,9 +48,12 @@ class SamplePredictionCallback(TrainerCallback):
                 gt_tokens = [t for t in labels_batch[i].tolist() if t != -100]
                 gt_text = self.tokenizer.decode(gt_tokens, skip_special_tokens=True).strip()
                 pred_text = self.tokenizer.decode(gen_ids[i][prompt_len:], skip_special_tokens=True).strip()
+                def _trunc(s, max_len=200):
+                    return s[:max_len] + ("..." if len(s) > max_len else "")
                 print(f"  [Sample {i+1}]")
-                print(f"    Ground truth: {gt_text[:200]}{'...' if len(gt_text) > 200 else ''}")
-                print(f"    Predicted:    {pred_text[:200]}{'...' if len(pred_text) > 200 else ''}")
+                print(f"    Input (prompt):     {_trunc(self.prompt)}")
+                print(f"    Model inference:    {_trunc(pred_text)}")
+                print(f"    Ground truth:       {_trunc(gt_text)}")
                 print()
             print("=" * 60 + "\n")
         except Exception as e:
@@ -91,7 +94,7 @@ def train():
     train_dataset = AudioTextDataset(train_config, processor, model_config, tokenizer)
     data_collator = DataCollator(processor, tokenizer)
     
-    # Training Arguments (verbose logging)
+    # Training Arguments (tuned for A100 80GB: bf16, larger batch, fast dataloader)
     training_args = TrainingArguments(
         output_dir=train_config.output_dir,
         per_device_train_batch_size=train_config.batch_size,
@@ -99,6 +102,10 @@ def train():
         learning_rate=train_config.learning_rate,
         num_train_epochs=train_config.num_epochs,
         max_steps=train_config.max_steps,
+        bf16=train_config.use_bf16,
+        gradient_checkpointing=train_config.gradient_checkpointing,
+        dataloader_num_workers=train_config.dataloader_num_workers,
+        dataloader_pin_memory=train_config.dataloader_pin_memory,
         logging_steps=train_config.log_steps,
         logging_first_step=True,
         logging_nan_inf_filter=True,
