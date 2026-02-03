@@ -3,6 +3,7 @@ import torch
 import transformers
 from transformers import Trainer, TrainingArguments, TrainerCallback
 from peft import LoraConfig, get_peft_model, TaskType
+from huggingface_hub import HfApi, login
 from config import TrainConfig, ModelConfig
 from model import MultiModalModel
 from data import AudioTextDataset, DataCollator
@@ -148,6 +149,43 @@ def train():
     trainer.save_model(train_config.output_dir)
     tokenizer.save_pretrained(train_config.output_dir)
     processor.save_pretrained(train_config.output_dir)
+
+    # Push to Hub
+    if train_config.push_to_hub:
+        print(f"\n>>> Pushing model to Hugging Face Hub: {train_config.hub_model_id}")
+        if train_config.hub_token:
+            login(token=train_config.hub_token)
+        
+        api = HfApi()
+        
+        # Create repo if needed
+        # private=True by default for safety, user can adjust
+        try:
+            api.create_repo(repo_id=train_config.hub_model_id, private=train_config.hub_private_repo, exist_ok=True)
+        except Exception as e:
+            print(f"Warning: Could not create repo {train_config.hub_model_id}. Error: {e}")
+        
+        # Upload model folder
+        try:
+            api.upload_folder(
+                folder_path=train_config.output_dir,
+                repo_id=train_config.hub_model_id,
+                repo_type="model",
+            )
+            
+            # Upload code files to ensure custom model works
+            for file in ["model.py", "config.py", "data.py", "inference.py"]:
+                 if os.path.exists(file):
+                      api.upload_file(
+                           path_or_fileobj=file,
+                           path_in_repo=file,
+                           repo_id=train_config.hub_model_id,
+                           repo_type="model",
+                      )
+
+            print(f">>> Successfully pushed to {train_config.hub_model_id}")
+        except Exception as e:
+            print(f"Error pushing to hub: {e}")
 
 if __name__ == "__main__":
     train()

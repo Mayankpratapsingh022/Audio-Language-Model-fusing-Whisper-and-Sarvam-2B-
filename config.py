@@ -37,6 +37,12 @@ class TrainConfig:
     lora_alpha: int = 32
     lora_dropout: float = 0.05
     
+    # Hub
+    push_to_hub: bool = False
+    hub_model_id: Optional[str] = None  # e.g. "username/model-name"
+    hub_token: Optional[str] = None
+    hub_private_repo: bool = True
+
     # Misc
     seed: int = 42
     log_steps: int = 10

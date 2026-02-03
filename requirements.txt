@@ -2,6 +2,7 @@
 torch>=2.0.0
 torchaudio>=2.0.0
 # Hugging Face
+huggingface_hub>=0.19.0
 transformers>=4.36.0
 datasets>=2.14.0
 accelerate>=0.25.0
