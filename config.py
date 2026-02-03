@@ -21,7 +21,7 @@ class TrainConfig:
 
     learning_rate: float = 1e-4
     num_epochs: int = 1
-    max_steps: int = 1000 # Use either epochs or steps
+    max_steps: int = 10000 # Use either epochs or steps
 
     # Paths
     output_dir: str = "./checkpoints"
