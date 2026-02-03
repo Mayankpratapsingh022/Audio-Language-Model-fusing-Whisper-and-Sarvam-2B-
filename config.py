@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 
 @dataclasses.dataclass
 class ModelConfig:
-    audio_model_id: str = "openai/whisper-small"
+    audio_model_id: str = "openai/whisper-medium"
     text_model_id: str = "sarvamai/sarvam-2b-v0.5"
     hidden_size: int = 2048
     projector_act: str = "gelu"
