@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 @dataclasses.dataclass
 class ModelConfig:
     audio_model_id: str = "openai/whisper-medium"
-    text_model_id: str = "sarvamai/sarvam-2b-v0.5"
+    text_model_id: str = "sarvamai/sarvam-m"
     hidden_size: int = 2048
     projector_act: str = "gelu"
     stack_factor: int = 8
@@ -42,6 +42,13 @@ class TrainConfig:
     hub_model_id: Optional[str] = None  # e.g. "username/model-name"
     hub_token: Optional[str] = None
     hub_private_repo: bool = True
+
+    # WandB
+    wandb_project: str = "audio-language-model"
+    wandb_entity: Optional[str] = None
+    wandb_run_name: Optional[str] = None
+    wandb_watch: str = "false" # "gradients", "all", "false"
+    wandb_log_model: str = "false" # "true", "false"
 
     # Misc
     seed: int = 42

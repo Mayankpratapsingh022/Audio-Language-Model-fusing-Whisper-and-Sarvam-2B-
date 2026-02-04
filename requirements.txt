@@ -12,3 +12,5 @@ peft>=0.7.0
 
 # Optional: for Trainer / training
 # accelerate is needed by transformers Trainer
+wandb
+python-dotenv

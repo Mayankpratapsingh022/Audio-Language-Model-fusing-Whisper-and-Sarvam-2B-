@@ -1,9 +1,12 @@
 import os
+import dataclasses
 import torch
 import transformers
 from transformers import Trainer, TrainingArguments, TrainerCallback
 from peft import LoraConfig, get_peft_model, TaskType
 from huggingface_hub import HfApi, login
+import wandb
+from dotenv import load_dotenv
 from config import TrainConfig, ModelConfig
 from model import MultiModalModel
 from data import AudioTextDataset, DataCollator
@@ -43,23 +46,29 @@ class SamplePredictionCallback(TrainerCallback):
                     pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
                 )
             prompt_len = prompt_ids.size(1)
-            print("\n" + "=" * 60)
-            print(f"  Sample predictions (step {state.global_step})")
-            print("=" * 60)
+            
+            # Create a wandb Table
+            columns = ["Step", "Audio Index", "Ground Truth", "Prediction", "Continuation"]
+            table = wandb.Table(columns=columns)
+            
+            print(f"\n[WandB] Logging sample predictions at step {state.global_step}")
+            
             for i in range(audio_values.size(0)):
                 gt_tokens = [t for t in labels_batch[i].tolist() if t != -100]
                 gt_text = self.tokenizer.decode(gt_tokens, skip_special_tokens=True).strip()
                 pred_text = self.tokenizer.decode(gen_ids[i][prompt_len:], skip_special_tokens=True).strip()
-                def _trunc(s, max_len=200):
-                    return s[:max_len] + ("..." if len(s) > max_len else "")
+                
                 cont_ref = continuations[i] if i < len(continuations) else ""
-                print(f"  [Sample {i+1}]")
-                print(f"    Audio transcript:   {_trunc(gt_text)}")
-                print(f"    Model inference:    {_trunc(pred_text)}")
-                if cont_ref:
-                    print(f"    Continuation (ref): {_trunc(cont_ref)}")
-                print()
-            print("=" * 60 + "\n")
+                
+                # Add row to table
+                table.add_data(state.global_step, i, gt_text, pred_text, cont_ref)
+                
+            # Log the table to wandb
+            if wandb.run is not None:
+                wandb.log({"sample_predictions": table}, step=state.global_step)
+            else:
+                print("Warning: WandB run not active, skipping logging.")
+
         except Exception as e:
             print(f"[SamplePredictionCallback] Error: {e}\n")
         finally:
@@ -67,9 +76,21 @@ class SamplePredictionCallback(TrainerCallback):
 
 
 def train():
+    # Load environment variables
+    load_dotenv()
+
     # Load Configs
     train_config = TrainConfig()
     model_config = ModelConfig()
+    
+    # Initialize WandB
+    wandb.init(
+        project=train_config.wandb_project,
+        entity=train_config.wandb_entity,
+        name=train_config.wandb_run_name,
+        config=dataclasses.asdict(train_config),
+    )
+
     
     # Initialize Tokenizer & Processor
     tokenizer = transformers.AutoTokenizer.from_pretrained(model_config.text_model_id)
@@ -116,7 +137,7 @@ def train():
         save_steps=train_config.save_steps,
         eval_strategy="no",  # change if val set provided
         remove_unused_columns=False,  # Important because we have custom forward signature
-        report_to="none",
+        report_to="wandb",
         log_level="info",
         log_level_replica="info",
     )

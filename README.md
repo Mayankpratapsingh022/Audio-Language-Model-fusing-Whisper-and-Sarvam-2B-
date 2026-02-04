@@ -30,6 +30,25 @@ A modular, simplified implementation of a multimodal LLM inspired by Audio Langu
    The project is configured to use Hugging Face datasets (default: `fixie-ai/common_voice_17_0`).
    You can change the dataset settings in `config.py`.
 
+4. **Environment Configuration (.env):**
+   Create a `.env` file in the root directory to configure Weights & Biases (and optionally Hugging Face).
+   
+   ```bash
+   touch .env
+   ```
+   
+   Add the following variables to `.env`:
+   
+   ```ini
+   # Required for WandB tracking
+   WANDB_API_KEY=your_wandb_api_key_here
+   WANDB_PROJECT=audio-language-model
+   WANDB_ENTITY=your_username_or_team_name  # Optional
+   
+   # Optional: Hugging Face Token (if pushing to Hub)
+   HF_TOKEN=your_hf_token_here
+   ```
+
 ## Usage
 
 ### Training
