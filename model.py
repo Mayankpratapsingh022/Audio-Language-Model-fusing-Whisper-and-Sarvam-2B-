@@ -111,3 +111,6 @@ class MultiModalModel(nn.Module):
              inputs_embeds = inputs_embeds.to(next(self.llm.parameters()).dtype)
 
         return self.llm.generate(inputs_embeds=inputs_embeds, **kwargs)
+
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        self.llm.gradient_checkpointing_enable(gradient_checkpointing_kwargs=gradient_checkpointing_kwargs)

@@ -6,7 +6,8 @@ from transformers import Trainer, TrainingArguments, TrainerCallback
 from peft import LoraConfig, get_peft_model, TaskType
 from huggingface_hub import HfApi, login
 import wandb
-from dotenv import load_dotenv
+from dotenv import 
+load_dotenv()
 from config import TrainConfig, ModelConfig
 from model import MultiModalModel
 from data import AudioTextDataset, DataCollator

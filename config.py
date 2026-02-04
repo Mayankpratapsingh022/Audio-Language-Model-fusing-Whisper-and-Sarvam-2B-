@@ -1,3 +1,4 @@
+import os
 import dataclasses
 from typing import Optional, Tuple
 
@@ -9,13 +10,16 @@ class ModelConfig:
     projector_act: str = "gelu"
     stack_factor: int = 8
 
+    def to_dict(self):
+        return dataclasses.asdict(self)
+
 @dataclasses.dataclass
 class TrainConfig:
     # --- Batch & GPU (tuned for A100 80GB) ---
     batch_size: int = 32          # per-device; try 64 if no OOM
     accum_steps: int = 2          # effective batch = 32*2=64; reduce if OOM
     use_bf16: bool = True         # A100 native bf16: faster + less VRAM
-    gradient_checkpointing: bool = False  # set True if OOM to trade compute for memory
+    gradient_checkpointing: bool = True  # set True if OOM to trade compute for memory
     dataloader_num_workers: int = 8
     dataloader_pin_memory: bool = True
 
@@ -44,8 +48,8 @@ class TrainConfig:
     hub_private_repo: bool = True
 
     # WandB
-    wandb_project: str = "audio-language-model"
-    wandb_entity: Optional[str] = None
+    wandb_project: str = os.getenv("WANDB_PROJECT", "audio-language-model")
+    wandb_entity: Optional[str] = os.getenv("WANDB_ENTITY", None)
     wandb_run_name: Optional[str] = None
     wandb_watch: str = "false" # "gradients", "all", "false"
     wandb_log_model: str = "false" # "true", "false"
