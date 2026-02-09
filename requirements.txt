@@ -14,3 +14,4 @@ peft>=0.7.0
 # accelerate is needed by transformers Trainer
 wandb
 python-dotenv
+safetensors

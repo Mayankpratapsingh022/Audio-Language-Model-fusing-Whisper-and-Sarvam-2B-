@@ -66,6 +66,31 @@ Run inference on an audio file:
 python inference.py /path/to/audio.wav
 ```
 
+### Fine-tuning
+
+To fine-tune the model (e.g., for instruction following or specific domains) using the pre-trained projector:
+
+1.  **Configuration**: 
+    -   Check `finetune_config.py` for settings.
+    -   Key parameters: `dataset_names`, `load_from_checkpoint`, `lora_r`.
+
+2.  **Run Fine-tuning**:
+    ```bash
+    # Uses finetune.py, finetune_config.py, and finetune_data.py
+    bash launch_finetune.sh
+    # OR
+    python finetune.py
+    ```
+
+    **Note**: The fine-tuning script:
+    -   Automatically downloads the pre-trained `model.safetensors` from Hugging Face (`Mayank022/Audio-Language-Model`).
+    -   Freezes the Audio Encoder.
+    -   Loads the Projector weights.
+    -   Applies **LoRA** to the LLM (Sarvam-M) for efficient training.
+    -   Handles mixed datasets:
+        -   **With Instructions**: Uses the `instruction_prompt` column.
+        -   **Without Instructions**: Randomly samples default prompts (e.g., "Transcribe this audio").
+
 ## Model Architecture
 
 The `AudioLM` consists of:
